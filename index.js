@@ -7,8 +7,8 @@ const catme = require("cat-me");
 const session = require ("express-session");
 
 const twilio = require ("twilio");
-const accountSid = "yourAccountSid"; 
-const authToken = "yourauthToken";
+const accountSid = "AC8f9db0123f975063d0fec07d687b2cab"; 
+const authToken = "3268094d75f06f836cbb23b09b03e522";
 
 const client = new twilio(accountSid, authToken);
 
@@ -30,7 +30,7 @@ app.use(session({
     saveUninitialized: false, // Save a session that is new, but has not been modified
     cookie: {
             
-            maxAge: 60000
+            maxAge: 216000
         }
  }));
 
@@ -51,7 +51,7 @@ var choice1 = "";
 
 app.post('/inbound', (req, res) => {
 
-    const smsCount = req.session.counter || 0;
+    var smsCount = req.session.counter || 0;
     let message = "-Hi! Thank you for contacting us! I am Doris (the DUSA Bot) and I am here to provide with information about our services. If I cannot answer to your question, please hang in there and a staff member will contact you shortly.  😀 \n \n -Hola! Gracias por escribirnos! Soy Doris (El bot de DUSA) y estoy aquí para brindarle información acerca de los servicios que ofrecemos. Si no le puedo responder a alguna pregunta, por favor, espere un momento y un representante le contactará en breve. \n \n -But first, please tell me what is your preferred language?  \n \n -Pero primero digame, ¿cual es su idioma de preferencia? \n \n -(English or Spanish?)" ;
   	const twiml = new MessagingResponse();
 
@@ -84,27 +84,27 @@ app.post('/inbound', (req, res) => {
 
 // ---------------------- Asking for type of aid ----------------------
 
+console.log(req.body.Body);
+console.log(req.session.counter);
 if(smsCount == 2 && choice1 == "English" && req.body.Body == "Jobs") {
 
       message = "To learn more about the job opportunities we have available to you, please call us or visit our website! \n\n 🌎http://dominicanosusa.org/en/tucareer/ \n\n 📞+17186650400 ";
-    
-      sendMessage();
+      sendMessage(message);
       return;
-      
-    
-    } else if (smsCount == 2 && choice1 == "English" && req.body.Body == "Citizenship") {
-      message = "Citizenship";
-      req.session.counter = smsCount + 1;
 
+    } else if(smsCount ==2 && choice1 == "English" && req.body.Body == "Citizenship" ) {
 
-    } else if (smsCount== 2 && choice1 == English && req.body.Body == "Voter Registration"){
-      message = "you chose voter registration";
-      req.session.counter = smsCount + 1;
+    message = "You have chosen citizenship, we have a couple of questions to ask you";
 
-    } else if(smsCount==2) {
-      sendMessage();
-      return; //stops the code from running if user does not choose English or Spanish
-    }
+    req.session.counter = smsCount + 1;
+
+    } else if (smsCount==2) {
+
+      message = " Please choose between Citizenship, Voter Registration, or Jobs";
+      sendMessage(message);
+      return;
+}
+
 
       
 
