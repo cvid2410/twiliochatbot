@@ -7,8 +7,8 @@ const catme = require("cat-me");
 const session = require ("express-session");
 
 const twilio = require ("twilio");
-const accountSid = "AC8f9db0123f975063d0fec07d687b2cab"; 
-const authToken = "3268094d75f06f836cbb23b09b03e522";
+const accountSid = "yourAccountSid"; 
+const authToken = "yourauthToken";
 
 const client = new twilio(accountSid, authToken);
 
@@ -105,10 +105,8 @@ if(smsCount == 2 && choice1 == "English" && req.body.Body == "Jobs") {
       sendMessage();
       return; //stops the code from running if user does not choose English or Spanish
     }
-    
 
-
-    
+      
 
   req.session.counter = smsCount + 1;
   sendMessage(message);
