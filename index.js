@@ -12,15 +12,19 @@ const authToken = "3268094d75f06f836cbb23b09b03e522";
 
 const client = new twilio(accountSid, authToken);
 
-let MessageSchema = new mongoose.Schema({
+let leadSchema = new mongoose.Schema({
+
 	phoneNumber: String,
 	firstName: String,
 	lastName: String,
-	typeOfService: String
+	email: String,
+  citizenship: Boolean,
+  voterregistration: Boolean,
+  jobs: Boolean
 
 });
 
-let Message = mongoose.model("Message", MessageSchema); 
+let Lead = mongoose.model("Lead", leadSchema); 
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(session({
@@ -34,25 +38,19 @@ app.use(session({
         }
  }));
 
-// mongoose.connect('mongodb+srv://cvides:Dominicanos123@cluster0-ehrfc.mongodb.net/test?retryWrites=true&w=majority', { useNewUrlParser: true }).then(() => {
-// 	console.log("db connected");
-// });
+mongoose.connect('mongodb+srv://cvides:Dominicanos123@cluster0-ehrfc.mongodb.net/test?retryWrites=true&w=majority', { useNewUrlParser: true }).then(() => {
+	console.log("db connected");
+});
 
-// client.messages
-// 	.create({
-// 		to: 'whatsapp:+17189028757',
-// 		from: 'whatsapp:+14155238886',
-// 		body: "Hola Carlos Vides",
-// 	})
-// 	.then((message) => console.log(message.sid));
 
-var choice1 = "";
+var language = "";
+let message = "";
 
 
 app.post('/inbound', (req, res) => {
 
     var smsCount = req.session.counter || 0;
-    let message = "-Hi! Thank you for contacting us! I am Doris (the DUSA Bot) and I am here to provide with information about our services. If I cannot answer to your question, please hang in there and a staff member will contact you shortly.  😀 \n \n -Hola! Gracias por escribirnos! Soy Doris (El bot de DUSA) y estoy aquí para brindarle información acerca de los servicios que ofrecemos. Si no le puedo responder a alguna pregunta, por favor, espere un momento y un representante le contactará en breve. \n \n -But first, please tell me what is your preferred language?  \n \n -Pero primero digame, ¿cual es su idioma de preferencia? \n \n -(English or Spanish?)" ;
+    message = "Hello Thanks for contacting Dominicanos USA. I'm Doris (the DUSA Bot) I see this is the first time you are contacting us. I will ask some questions to get to know you first.  \n \nBut first, please tell me what is your preferred language?  \n \nPero primero digame, ¿cual es su idioma de preferencia? \n\nEnglish or Spanish?" ;
   	const twiml = new MessagingResponse();
 
     function sendMessage(message) {
@@ -61,21 +59,41 @@ app.post('/inbound', (req, res) => {
       res.end(twiml.toString());
     }
 
+let phone = req.body.From.substring(9, 21);
+
+Lead.find({phoneNumber: phone}, function(err, found) {
+  if(found.length!==0){
+    message = "seems like we've talked to you before."
+  } else {
+    let newLead = new Lead();
+    newLead.phoneNumber = phone;
+    newLead.save(); 
+
+    if(smsCount == 1 && req.body.Body == "English") {
+      message = "Would you tell me your first name please?"
+    }
+  }
+
+
+});
+
+
+
 
 // ---------------------- Asking for language ----------------------
-  if(smsCount == 1 && req.body.Body == "English") {
-  		message = "Which of our services are you interested in? \n\n Citizenship \n\n Voter Registration \n\n Jobs ";
-  		choice1 = "English";
+  if(smsCount == 10 && req.body.Body == "English") {
+  		message = "Which of our services are you interested in? \n\nCitizenship \n\nVoter Registration \n\nJobs ";
+  		language = "English";
 
   		req.session.counter = smsCount + 1;
 
-  	} else if (smsCount == 1 && req.body.Body =="Spanish") {
+  	} else if (smsCount == 10 && req.body.Body =="Spanish") {
   		message = "you have chosen Spanish";
-  		choice1 = "Spanish";
+  		language = "Spanish";
 
   		req.session.counter = smsCount + 1;
 
-  	} else if(smsCount==1) {
+  	} else if(smsCount==10) {
   		message = "Type English or Spanish";
   		sendMessage(message);
   		return; //stops the code from running if user does not choose English or Spanish
@@ -84,18 +102,25 @@ app.post('/inbound', (req, res) => {
 
 // ---------------------- Asking for type of aid ----------------------
 
-console.log(req.body.Body);
+
+console.log(phone);
 console.log(req.session.counter);
-if(smsCount == 2 && choice1 == "English" && req.body.Body == "Jobs") {
 
-      message = "To learn more about the job opportunities we have available to you, please call us or visit our website! \n\n 🌎http://dominicanosusa.org/en/tucareer/ \n\n 📞+17186650400 ";
-      sendMessage(message);
-      return;
+if(smsCount == 2 && language == "English" && req.body.Body.toLowerCase() == "jobs") {
 
-    } else if(smsCount ==2 && choice1 == "English" && req.body.Body == "Citizenship" ) {
+      message = "You have chosen jobs. To learn more about the job opportunities we have available to you, please call us or visit our website! \n\n🌎http://dominicanosusa.org/en/tucareer/ \n\n📞+17186650400 ";
+      req.session.counter = smsCount + 1;
 
-    message = "You have chosen citizenship, we have a couple of questions to ask you";
+    } else if(smsCount ==2 && language == "English" && req.body.Body.toLowerCase() == "citizenship" ) {
 
+    message = "You have chosen Citizenship option.\n\nPlease visit the link below to fill out the information required to fill out your N-400 application automatically! \n\nhttps://www.citizenshipworks.org/portal/dusa" + 
+    "\n\nNeed help? Watch this video: \nhttps://www.youtube.com/watch?v=r3j5mo2zzcY \n\nNeed in-person help? call us to make an appointment!\n+1(718)665-0400 ";
+    req.session.counter = smsCount + 1;
+
+    } else if(smsCount ==2 && language == "English" && req.body.Body.toLowerCase() == "voter registration" ) {
+
+    message = "You have chosen the Voter Registration option.\n\nPlease visit the link below to register to vote: \nvote.gov" + 
+    "\n\nNeed in-person help? call us to register you to vote!\n+1(718)665-0400 ";
     req.session.counter = smsCount + 1;
 
     } else if (smsCount==2) {
@@ -105,8 +130,13 @@ if(smsCount == 2 && choice1 == "English" && req.body.Body == "Jobs") {
       return;
 }
 
+if(smsCount==3) {
+  message = "got to the end of the dialog questions. Find me a way to bring me to the beginning!";
+  sendMessage(message);
+  return;
+}
 
-      
+    
 
   req.session.counter = smsCount + 1;
   sendMessage(message);
@@ -144,6 +174,16 @@ if(smsCount == 2 && choice1 == "English" && req.body.Body == "Jobs") {
  //    res.end(twiml.toString());
 
 // });
+
+
+
+// client.messages
+//  .create({
+//    to: 'whatsapp:+17189028757',
+//    from: 'whatsapp:+14155238886',
+//    body: "Hola Carlos Vides",
+//  })
+//  .then((message) => console.log(message.sid));
 
 
 
