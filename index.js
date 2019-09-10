@@ -7,8 +7,8 @@ const catme = require("cat-me");
 const session = require ("express-session");
 
 const twilio = require ("twilio");
-const accountSid = "AC8f9db0123f975063d0fec07d687b2cab"; 
-const authToken = "3268094d75f06f836cbb23b09b03e522";
+const accountSid = "ACcbd82dfe4cd2875bca82de7c3b4f5741"; 
+const authToken = "08706b64cc6c5ee1020e24563839e7c5";
 
 const client = new twilio(accountSid, authToken);
 
@@ -45,98 +45,160 @@ mongoose.connect('mongodb+srv://cvides:Dominicanos123@cluster0-ehrfc.mongodb.net
 
 var language = "";
 let message = "";
+var newContact = new Boolean(true);
+var primerNombre = "";
+var ultimoNombre = ""
+var correoElectronico = "";
 
 
 app.post('/inbound', (req, res) => {
 
-    var smsCount = req.session.counter || 0;
-    message = "Hello Thanks for contacting Dominicanos USA. I'm Doris (the DUSA Bot) I see this is the first time you are contacting us. I will ask some questions to get to know you first.  \n \nBut first, please tell me what is your preferred language?  \n \nPero primero digame, ¿cual es su idioma de preferencia? \n\nEnglish or Spanish?" ;
-  	const twiml = new MessagingResponse();
 
-    function sendMessage(message) {
-      twiml.message(message);
-      res.writeHead(200, {'Content-Type': 'text/xml'});
-      res.end(twiml.toString());
-    }
+var smsCount = req.session.counter || 0;
+const twiml = new MessagingResponse();
 
+function sendMessage(message) {
+  twiml.message(message);
+  res.writeHead(200, {'Content-Type': 'text/xml'});
+  res.end(twiml.toString());
+}
+
+let newLead = new Lead();
 let phone = req.body.From.substring(9, 21);
 
 Lead.find({phoneNumber: phone}, function(err, found) {
+
   if(found.length!==0){
-    message = "seems like we've talked to you before."
+    newContact = true;
   } else {
-    let newLead = new Lead();
+    
     newLead.phoneNumber = phone;
     newLead.save(); 
-
-    if(smsCount == 1 && req.body.Body == "English") {
-      message = "Would you tell me your first name please?"
-    }
   }
-
 
 });
 
+    
 
-
-
-// ---------------------- Asking for language ----------------------
-  if(smsCount == 10 && req.body.Body == "English") {
-  		message = "Which of our services are you interested in? \n\nCitizenship \n\nVoter Registration \n\nJobs ";
-  		language = "English";
-
-  		req.session.counter = smsCount + 1;
-
-  	} else if (smsCount == 10 && req.body.Body =="Spanish") {
-  		message = "you have chosen Spanish";
-  		language = "Spanish";
-
-  		req.session.counter = smsCount + 1;
-
-  	} else if(smsCount==10) {
-  		message = "Type English or Spanish";
-  		sendMessage(message);
-  		return; //stops the code from running if user does not choose English or Spanish
-  	}
-
-
-// ---------------------- Asking for type of aid ----------------------
-
+Lead.updateOne({phoneNumber: phone}, 
+{$set: 
+{firstName: primerNombre,
+ lastName: ultimoNombre,
+ email: correoElectronico}}, {new:true}, (err,doc) => {
+  if(err){
+    console.log(err);
+  }
+});  
+      
 
 console.log(phone);
-console.log(req.session.counter);
 
-if(smsCount == 2 && language == "English" && req.body.Body.toLowerCase() == "jobs") {
-
-      message = "You have chosen jobs. To learn more about the job opportunities we have available to you, please call us or visit our website! \n\n🌎http://dominicanosusa.org/en/tucareer/ \n\n📞+17186650400 ";
-      req.session.counter = smsCount + 1;
-
-    } else if(smsCount ==2 && language == "English" && req.body.Body.toLowerCase() == "citizenship" ) {
-
-    message = "You have chosen Citizenship option.\n\nPlease visit the link below to fill out the information required to fill out your N-400 application automatically! \n\nhttps://www.citizenshipworks.org/portal/dusa" + 
-    "\n\nNeed help? Watch this video: \nhttps://www.youtube.com/watch?v=r3j5mo2zzcY \n\nNeed in-person help? call us to make an appointment!\n+1(718)665-0400 ";
-    req.session.counter = smsCount + 1;
-
-    } else if(smsCount ==2 && language == "English" && req.body.Body.toLowerCase() == "voter registration" ) {
-
-    message = "You have chosen the Voter Registration option.\n\nPlease visit the link below to register to vote: \nvote.gov" + 
-    "\n\nNeed in-person help? call us to register you to vote!\n+1(718)665-0400 ";
-    req.session.counter = smsCount + 1;
-
-    } else if (smsCount==2) {
-
-      message = " Please choose between Citizenship, Voter Registration, or Jobs";
-      sendMessage(message);
-      return;
-}
-
-if(smsCount==3) {
-  message = "got to the end of the dialog questions. Find me a way to bring me to the beginning!";
-  sendMessage(message);
-  return;
-}
 
     
+    
+
+if(newContact) {
+
+  if(smsCount == 0) {
+    message = "Hello Thanks for contacting Dominicanos USA. I'm Doris (the DUSA Bot) I see this is the first time you are contacting us. I will ask some questions to get to know you first.  \n \nBut first, please tell me what is your preferred language?  \n \nPero primero digame, ¿cual es su idioma de preferencia? \n\nEnglish or Spanish?" ;
+    req.session.counter = smsCount + 1;
+  } 
+
+  if(smsCount == 1 && req.body.Body == "English") {
+    message = "may I know your name first name please?"
+    req.session.counter = smsCount + 1;
+  } else if(smsCount==1) {
+     message = "Type English or Spanish";
+     sendMessage(message);
+     return; 
+   }
+
+   if(smsCount == 2){
+    message = "may I know your name last name please?"
+    primerNombre = req.body.Body;
+  
+    req.session.counter = smsCount + 1;
+   } if(smsCount ==3) {
+    message= "may I know your email?"
+    ultimoNombre = req.body.Body;
+    req.session.counter = smsCount+1
+   } if(smsCount ==4) {
+    correoElectronico = req.body.Body;
+    message = "thanks!"
+   }
+} else if (newContact == false){
+
+   message = "seems like we have spoken before";
+
+  //  // ---------------------- Asking for language ----------------------
+  // if(smsCount == 1 && req.body.Body == "English") {
+  //    message = "Which of our services are you interested in? \n\nCitizenship \n\nVoter Registration \n\nJobs ";
+  //    language = "English";
+
+  //    req.session.counter = smsCount + 1;
+
+  //  } else if (smsCount == 1 && req.body.Body =="Spanish") {
+  //    message = "you have chosen Spanish";
+  //    language = "Spanish";
+
+  //    req.session.counter = smsCount + 1;
+
+  //  } else if(smsCount==1) {
+  //    message = "Type English or Spanish";
+  //    sendMessage(message);
+  //    return; //stops the code from running if user does not choose English or Spanish
+  //  }
+
+
+}
+
+
+ 
+
+    
+
+
+
+
+// // ---------------------- Asking for type of aid ----------------------
+
+
+// console.log(phone);
+// console.log(req.session.counter);
+
+// if(smsCount == 2 && language == "English" && req.body.Body.toLowerCase() == "jobs") {
+
+//       message = "You have chosen jobs. To learn more about the job opportunities we have available to you, please call us or visit our website! \n\n🌎http://dominicanosusa.org/en/tucareer/ \n\n📞+17186650400 ";
+//       req.session.counter = smsCount + 1;
+
+//     } else if(smsCount ==2 && language == "English" && req.body.Body.toLowerCase() == "citizenship" ) {
+
+//     message = "You have chosen Citizenship option.\n\nPlease visit the link below to fill out the information required to fill out your N-400 application automatically! \n\nhttps://www.citizenshipworks.org/portal/dusa" + 
+//     "\n\nNeed help? Watch this video: \nhttps://www.youtube.com/watch?v=r3j5mo2zzcY \n\nNeed in-person help? call us to make an appointment!\n+1(718)665-0400 ";
+//     req.session.counter = smsCount + 1;
+
+//     } else if(smsCount ==2 && language == "English" && req.body.Body.toLowerCase() == "voter registration" ) {
+
+//     message = "You have chosen the Voter Registration option.\n\nPlease visit the link below to register to vote: \nvote.gov" + 
+//     "\n\nNeed in-person help? call us to register you to vote!\n+1(718)665-0400 ";
+//     req.session.counter = smsCount + 1;
+
+//     } else if (smsCount==2) {
+
+//       message = " Please choose between Citizenship, Voter Registration, or Jobs";
+//       sendMessage(message);
+//       return;
+// }
+
+// if(smsCount==3) {
+//   message = "got to the end of the dialog questions. Find me a way to bring me to the beginning!";
+//   sendMessage(message);
+//   return;
+// }
+
+  
+
+
 
   req.session.counter = smsCount + 1;
   sendMessage(message);
