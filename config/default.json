@@ -1,0 +1,4 @@
+
+{
+	"mongoURI": "mongodb+srv://cvides:Dominicanos123@cluster0-ehrfc.mongodb.net/test?retryWrites=true&w=majority"
+}

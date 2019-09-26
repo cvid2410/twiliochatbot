@@ -3,28 +3,18 @@ const mongoose = require ("mongoose");
 const bodyParser = require ("body-parser");
 const MessagingResponse = require('twilio').twiml.MessagingResponse;
 const app = express();
-const catme = require("cat-me");
 const session = require ("express-session");
 
 const twilio = require ("twilio");
-const accountSid = "ACcbd82dfe4cd2875bca82de7c3b4f5741"; 
-const authToken = "08706b64cc6c5ee1020e24563839e7c5";
-
+const accountSid = "yourAccountSid"; 
+const authToken = "yourAuthToken";
 const client = new twilio(accountSid, authToken);
 
-let leadSchema = new mongoose.Schema({
+const Lead = require("./models/LeadSchema");
+const connectDB = require("./config/db");
 
-	phoneNumber: String,
-	firstName: String,
-	lastName: String,
-	email: String,
-  citizenship: Boolean,
-  voterregistration: Boolean,
-  jobs: Boolean
-
-});
-
-let Lead = mongoose.model("Lead", leadSchema); 
+//connect database
+connectDB();
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(session({
@@ -34,27 +24,24 @@ app.use(session({
     saveUninitialized: false, // Save a session that is new, but has not been modified
     cookie: {
             
-            maxAge: 216000
+            maxAge: 5*60000
         }
  }));
 
-mongoose.connect('mongodb+srv://cvides:Dominicanos123@cluster0-ehrfc.mongodb.net/test?retryWrites=true&w=majority', { useNewUrlParser: true }).then(() => {
-	console.log("db connected");
-});
 
 
-var language = "";
+var language = ""; 
 let message = "";
-var newContact = new Boolean(true);
-var primerNombre = "";
-var ultimoNombre = ""
-var correoElectronico = "";
+var newContact = true;
+var firstName = "";
+var lastName = ""
+var email = "";
 
 
 app.post('/inbound', (req, res) => {
 
 
-var smsCount = req.session.counter || 0;
+// var smsCount = req.session.counter || 0;
 const twiml = new MessagingResponse();
 
 function sendMessage(message) {
@@ -63,49 +50,60 @@ function sendMessage(message) {
   res.end(twiml.toString());
 }
 
+
+
 let newLead = new Lead();
 let phone = req.body.From.substring(9, 21);
+var smsCount = req.session.counter || 0;
 
-Lead.find({phoneNumber: phone}, function(err, found) {
 
-  if(found.length!==0){
-    newContact = true;
-  } else {
+
+    Lead.find({phoneNumber: phone}, function(err, found) {
     
-    newLead.phoneNumber = phone;
-    newLead.save(); 
-  }
-
-});
-
-    
-
-Lead.updateOne({phoneNumber: phone}, 
-{$set: 
-{firstName: primerNombre,
- lastName: ultimoNombre,
- email: correoElectronico}}, {new:true}, (err,doc) => {
-  if(err){
-    console.log(err);
-  }
-});  
+      if(found.length!==0){
+        if(smsCount < 4){
+          newContact = true
+        } else if(smsCount >= 4) {
+          newContact = false;
+          Lead.updateOne({phoneNumber: phone}, 
+    {$set: {newContact:false}}, {new:true},(err,doc)=>{
       
+    }); 
+        }
+       
+      } else {
+        newLead.newContact = true;
+        newLead.phoneNumber = phone;
+        newLead.save(); 
+      }
 
-console.log(phone);
+    });
 
+    var idk = true;
 
+    Lead.findOne({phoneNumber:phone}, function() {
+      console.log(newContact);
+      if(newContact == true){
+        idk = false;
+
+      }
+      
+    });
+
+    console.log(idk);
     
-    
+   
 
-if(newContact) {
+if (newContact) {
 
+ 
   if(smsCount == 0) {
     message = "Hello Thanks for contacting Dominicanos USA. I'm Doris (the DUSA Bot) I see this is the first time you are contacting us. I will ask some questions to get to know you first.  \n \nBut first, please tell me what is your preferred language?  \n \nPero primero digame, ¿cual es su idioma de preferencia? \n\nEnglish or Spanish?" ;
     req.session.counter = smsCount + 1;
   } 
 
   if(smsCount == 1 && req.body.Body == "English") {
-    message = "may I know your name first name please?"
+    message = "May I know your first name please?"
     req.session.counter = smsCount + 1;
   } else if(smsCount==1) {
      message = "Type English or Spanish";
@@ -114,57 +112,87 @@ if(newContact) {
    }
 
    if(smsCount == 2){
-    message = "may I know your name last name please?"
-    primerNombre = req.body.Body;
-  
+    message = "May I know your last name please?"
+
+    Lead.updateOne({phoneNumber: phone}, 
+    {$set: {firstName:req.body.Body}}, {new:true},(err,doc)=>{
+      
+    }); 
+
     req.session.counter = smsCount + 1;
-   } if(smsCount ==3) {
-    message= "may I know your email?"
-    ultimoNombre = req.body.Body;
+
+   } 
+   if(smsCount ==3) {
+    message= "May I know your email?"
+    
+    Lead.updateOne({phoneNumber: phone}, 
+    {$set: {lastName:req.body.Body}}, {new:true},(err,doc)=>{
+      
+    }); 
+
     req.session.counter = smsCount+1
-   } if(smsCount ==4) {
-    correoElectronico = req.body.Body;
-    message = "thanks!"
+   } 
+   if(smsCount ==4 ){
+    
+    Lead.updateOne({phoneNumber: phone}, 
+    {$set: {email:req.body.Body}}, {new:true},(err,doc)=>{
+      
+    }); 
+    message = "You are an old contact"
+
+    req.session.counter = smsCount+1
+
    }
-} else if (newContact == false){
-
-   message = "seems like we have spoken before";
-
-  //  // ---------------------- Asking for language ----------------------
-  // if(smsCount == 1 && req.body.Body == "English") {
-  //    message = "Which of our services are you interested in? \n\nCitizenship \n\nVoter Registration \n\nJobs ";
-  //    language = "English";
-
-  //    req.session.counter = smsCount + 1;
-
-  //  } else if (smsCount == 1 && req.body.Body =="Spanish") {
-  //    message = "you have chosen Spanish";
-  //    language = "Spanish";
-
-  //    req.session.counter = smsCount + 1;
-
-  //  } else if(smsCount==1) {
-  //    message = "Type English or Spanish";
-  //    sendMessage(message);
-  //    return; //stops the code from running if user does not choose English or Spanish
-  //  }
+   
 
 
-}
+  } else if (Lead.find({newContact}) == false) {
+
+    console.log("phase2");
+
+    if(smsCount =0) {
+       message = "You are an older contact";
+
+    }
+  
+  }
 
 
+
+       
+      
+
+  
  
 
-    
+
+  Lead.updateOne({phoneNumber: phone}, 
+    {$set: {smsCount}}, {new:true},(err,doc)=>{
+      
+  }); 
+
+  req.session.counter = smsCount + 1;
+  sendMessage(message);
+
+});
+
+	
+
+app.get("/", (req, res) => {
+	res.end();
+});
+
+
+app.listen(3000, () => {
+	console.log("server connected");
+});
 
 
 
 
-// // ---------------------- Asking for type of aid ----------------------
+//   } else if(oldContact) {
 
-
-// console.log(phone);
-// console.log(req.session.counter);
+//     // ---------------------- Asking for type of aid ----------------------
 
 // if(smsCount == 2 && language == "English" && req.body.Body.toLowerCase() == "jobs") {
 
@@ -195,66 +223,4 @@ if(newContact) {
 //   sendMessage(message);
 //   return;
 // }
-
-  
-
-
-
-  req.session.counter = smsCount + 1;
-  sendMessage(message);
-
-});
-
-	
-
- // const twiml = new MessagingResponse();
-
- // 	twiml.message("hey there what would you need help today with? press C for Citizenship press R for registration"); 
-
- //    if (req.body.Body == 'C' || req.body.Body == 'c' ) {
-
-	// 	twiml.message().media("https://pbs.twimg.com/profile_images/620467131272945664/RAjiDnXs.jpg");
-
-        
- //    } else {
- //        twiml.message('Hello there, how may I Help you today? Please write C for Citizenship, V for Voter Registration');
-   		
- //   		console.log(count);
- //    }
-
- //    let message = req.body.Body;
- //    console.log(message);
-
- //    if(req.body.Body == "hi") {
-
- //    		twiml.message("hello Carlos");
-
-
- //    } 
-
- //    res.writeHead(200, {'Content-Type': 'text/xml'});
- //    res.end(twiml.toString());
-
-// });
-
-
-
-// client.messages
-//  .create({
-//    to: 'whatsapp:+17189028757',
-//    from: 'whatsapp:+14155238886',
-//    body: "Hola Carlos Vides",
-//  })
-//  .then((message) => console.log(message.sid));
-
-
-
-app.get("/", (req, res) => {
-	res.end();
-});
-
-
-app.listen(3000, () => {
-	console.log("server connected");
-});
 
